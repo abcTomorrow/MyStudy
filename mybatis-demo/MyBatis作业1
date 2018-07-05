@@ -1,0 +1,134 @@
+1.Mapper在spring管理下其实是单例，为什么可以是一个单例？
+暂未想通
+2.MyBatis在Spring集成下没有mapper的xml文件会不会 报错，为什么？
+不会报错，Spring提供了两种继承MyBatis的方式：XML和Annotation。所以如果没有配置mapper的xml文件不会报错
+ 
+3. TypeHandler手写 
+手写TypeHandler，需要实现TypeHandler接口或者继承BaseTypeHandler类
+TypeHandler提供了一种javaType-->JdbcType jdbcType-->javaType的转换方式。
+一旦为某个类型重新定义了新的TypeHandler，如果有默认的TypeHandler，则会覆盖默认的TypeHandler
+
+4.手写Plugin,多个interceptor到底谁先执行？顺序由谁 决定的？
+执行顺序由Mybatis大的执行流程决定。如Executor-->statementHandler-->parameterHandler-->resultsetHandler。
+由于plugin主要对以上对象进行拦截。无论interceptor放置顺序如何 执行数据时依据mybatis的执行流程的
+
+5.TestMapper 作者为什么要设计这样的形式来做？ 为什么不是一个class而是一个interface? 
+ mapper存在的主要原因是根据全限定名+方法名找到对应的SQL语句。
+ 而且mapper中方法的执行是由MapperProxy代理对象执行的。
+
+6.org.apache.ibatis.executor.BaseExecutor#queryFromDatabase 322行这行代码的意义 
+private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
+    List<E> list;
+	localCache.putObject(key, EXECUTION_PLACEHOLDER);
+    try {
+      list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
+    } finally {
+      localCache.removeObject(key);
+    }
+    localCache.putObject(key, list);
+    if (ms.getStatementType() == StatementType.CALLABLE) {
+      localOutputParameterCache.putObject(key, parameter);
+    }
+    return list;
+}
+322行这行代码的意义是声明一个占位符，当发送一次查询数据的请求时，设置该占位符 告诉其他请求 正在查询数据库,请其他请求先阻塞或休眠。
+当这次请求查询到数据之后，将真正的数据放到占位符的位置，缓存数据。如果其他请求与该次请求查询的数据时一样的，直接从缓存中拿数据
+减少了查询请求对数据库的压力
+缓存数据的部分可参看org.apache.ibatis.executor.BaseExecutor.DeferredLoad#load org.apache.ibatis.executor.BaseExecutor.DeferredLoad#canLoad
+
+7.MyBatis的plugin实现机制 
+可参看org.apache.ibatis.plugin.InterceptorChain#pluginAll、org.apache.ibatis.plugin.Plugin#wrap，给出wrap分析一下
+ public static Object wrap(Object target, Interceptor interceptor) {
+    Map<Class<?>, Set<Method>> signatureMap = getSignatureMap(interceptor);
+    Class<?> type = target.getClass();
+    Class<?>[] interfaces = getAllInterfaces(type, signatureMap);
+    if (interfaces.length > 0) {
+      return Proxy.newProxyInstance(
+          type.getClassLoader(),
+          interfaces,
+          new Plugin(target, interceptor, signatureMap));//interceptor来自于自定义插件如customPlugins
+    }
+    return target;
+  }
+  以自定义plugin拦截方法为例
+  @Intercepts({@Signature(type = Executor.class,
+        method ="query",
+        args={MappedStatement.class,Object.class,RowBounds.class,ResultHandler.class})})
+		
+  其中signatureMap 是("Executor",类名+方法+参数)的键值对
+  getAllInterfaces是获取类实现的接口，由于我们这里使用的是CachingExecutor，所以接口是Executor 接口集合数目>0 则生成一个基于plugin的代理类
+  即CachingExecutor执行query操作时，实际上是plugin执行invoke方法的时候
+  @Override
+  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    try {
+      Set<Method> methods = signatureMap.get(method.getDeclaringClass());
+      if (methods != null && methods.contains(method)) {
+        return interceptor.intercept(new Invocation(target, method, args));//这里target是CachingExecutor method是query
+      }
+      return method.invoke(target, args);
+    } catch (Exception e) {
+      throw ExceptionUtil.unwrapThrowable(e);
+    }
+  }
+  query方法会被拦截，然后执行CustomPlugins的intercept方法，执行完毕后 执行invocation.proceed() 即再次执行CachingExecutor.query
+   public Object proceed() throws InvocationTargetException, IllegalAccessException {
+    return method.invoke(target, args);
+  }
+  如果方法未被拦截 则不使用拦截器
+
+8.lazy loading 是怎么做到的？ 代理
+org.apache.ibatis.executor.resultset.DefaultResultSetHandler#createResultObject(ResultSetWrapper, ResultMap,ResultLoaderMap, java.lang.String)
+if (propertyMapping.getNestedQueryId() != null && propertyMapping.isLazy()) {
+          resultObject = configuration.getProxyFactory().createProxy(resultObject, lazyLoader, configuration, objectFactory, constructorArgTypes, constructorArgs);
+          break;
+        }
+其中NestedQuery表示嵌套查询 NestedResult表示嵌套结果
+isLazy是否设置了缓存 对应于Configuration.setLazyLoadingEnabled
+上面就是说 如果有嵌套查询且开启了缓存 那么会使用代理工厂来处理(代理工厂类型cglib或javasissit类型(默认))
+
+9.怎么验证一级缓存的存在？
+一级缓存是session级别的缓存。当session在进行一次查询数据库后，会将查询结果放在localCache中localCache.putObject(key, list);
+如果session再进行同样查询的话，会返回已经查询的数据。依据代码
+
+private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
+    List<E> list;
+    localCache.putObject(key, EXECUTION_PLACEHOLDER);
+    try {
+      list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
+    } finally {
+      localCache.removeObject(key);
+    }
+    localCache.putObject(key, list);
+    if (ms.getStatementType() == StatementType.CALLABLE) {
+      localOutputParameterCache.putObject(key, parameter);
+    }
+    return list;
+  }
+
+10.验证N+1问题
+N+1问题存在于嵌套查询中。当未设置延迟加载时，查询主数据的同时与其关联的从数据也会被查询出来。
+由关联关系的不同，如1:1 1:n 当主数据查询的同时 从数据会发送1条或n条sql去查询数据库 也就是n+1
+
+11.org.apache.ibatis.binding.MapperProxy#invoke 这个类的53行什么时候执行？
+ @Override
+  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    try {
+      if (Object.class.equals(method.getDeclaringClass())) {
+        return method.invoke(this, args);
+      } else if (isDefaultMethod(method)) {
+        return invokeDefaultMethod(proxy, method, args);
+      }
+    } catch (Throwable t) {
+      throw ExceptionUtil.unwrapThrowable(t);
+    }
+    final MapperMethod mapperMethod = cachedMapperMethod(method);
+    return mapperMethod.execute(sqlSession, args);
+  }
+   private boolean isDefaultMethod(Method method) {
+    return ((method.getModifiers()
+        & (Modifier.ABSTRACT | Modifier.PUBLIC | Modifier.STATIC)) == Modifier.PUBLIC)
+        && method.getDeclaringClass().isInterface();
+  }
+  依据代码来看，只有当method的修饰符数值为1的时候 isDefaultMethod为true。我们知道接口中的方法的默认修饰符public abstract 
+  如果方法只要public修饰，只有default类型的方法，如在接口中 声明如下方法
+  default void sayHello(){...}//default 存在于1.8及以上
