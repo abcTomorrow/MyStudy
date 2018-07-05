@@ -9,7 +9,8 @@ TypeHandler提供了一种javaType-->JdbcType jdbcType-->javaType的转换方式
 一旦为某个类型重新定义了新的TypeHandler，如果有默认的TypeHandler，则会覆盖默认的TypeHandler
 
 4.手写Plugin,多个interceptor到底谁先执行？顺序由谁 决定的？
-暂未想通
+执行顺序由Mybatis大的执行流程决定。如Executor-->statementHandler-->parameterHandler-->resultsetHandler。
+由于plugin主要对以上对象进行拦截。无论interceptor放置顺序如何 执行数据时依据mybatis的执行流程的
 
 5.TestMapper 作者为什么要设计这样的形式来做？ 为什么不是一个class而是一个interface? 
  mapper存在的主要原因是根据全限定名+方法名找到对应的SQL语句。
