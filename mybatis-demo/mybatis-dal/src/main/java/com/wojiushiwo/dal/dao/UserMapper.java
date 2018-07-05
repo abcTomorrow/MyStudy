@@ -27,4 +27,8 @@ public interface UserMapper {
 
     int updateByPrimaryKey(User record);
     List<User> findAll();
+
+    default void sayHello(){
+        System.out.println("Hello");
+    }
 }

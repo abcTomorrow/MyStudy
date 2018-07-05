@@ -10,8 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.util.List;
-
 /**
  * Unit test for simple App.
  */
@@ -20,17 +18,19 @@ import java.util.List;
 public class AppTest {
     @Autowired
     private UserMapper userMapper;
-
     @Test
     public void findAll() {
 //        UserExample userExample = new UserExample();
 //        userExample.createCriteria().andNameEqualTo("wanyu");
-        List<User> users = userMapper.findAll();
+//        List<User> users = userMapper.findAll();
 //        for (User user : users) {
 //            System.out.println(user.getName() + ";" + user.getAge());
 //        }
-        List<User> users2 = userMapper.findAll();
+        byte b=1;
+        User users = userMapper.selectByPrimaryKey(b);
+//        userMapper.sayHello();
     }
+
     @Test
     public void insert() {
        User user=new User();

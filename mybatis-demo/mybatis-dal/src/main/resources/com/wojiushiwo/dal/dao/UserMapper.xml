@@ -3,8 +3,8 @@
 <mapper namespace="com.wojiushiwo.dal.dao.UserMapper">
   <resultMap id="BaseResultMap" type="com.wojiushiwo.dal.dao.User">
     <id column="id" jdbcType="TINYINT" property="id" />
-    <result column="name" jdbcType="VARCHAR" property="name" typeHandler="com.wojiushiwo.dal.typeHandler.CustomTypeHandler"/>
-    <result column="age" jdbcType="TINYINT" property="age" />
+    <result column="name" jdbcType="VARCHAR" property="username" typeHandler="com.wojiushiwo.dal.typeHandler.CustomTypeHandler"/>
+    <result column="age" jdbcType="TINYINT" property="password" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -65,7 +65,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, name, age
+    id, username, password
   </sql>
   <select id="selectByExample" parameterType="com.wojiushiwo.dal.dao.UserExample" resultMap="BaseResultMap">
     select

@@ -8,21 +8,24 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 
 import java.util.Properties;
+
 @Intercepts({@Signature(type = Executor.class,
-        method ="query",
-        args={MappedStatement.class,Object.class,RowBounds.class,ResultHandler.class})})
+        method = "query",
+        args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})})
 public class CustomPlugins implements Interceptor {
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
         BoundSql boundSql = mappedStatement.getBoundSql(invocation.getArgs()[1]);
-        System.out.println(String.format("plugin output sql = %s , param=%s", boundSql.getSql(),boundSql.getParameterObject()));
+        System.out.println(String.format("plugin output sql = %s , param=%s", boundSql.getSql(), boundSql.getParameterObject()));
+        System.out.println("======================customPlugins======================");
         return invocation.proceed();
+
     }
 
     @Override
     public Object plugin(Object o) {
-        Object obj= Plugin.wrap(o,this);
+        Object obj = Plugin.wrap(o, this);
         return obj;
     }
 

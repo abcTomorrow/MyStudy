@@ -1,12 +1,13 @@
 package com.wojiushiwo.dal.config;
 
+import com.wojiushiwo.dal.plugins.CustomPlugin2;
+import com.wojiushiwo.dal.plugins.CustomPlugin3;
+import com.wojiushiwo.dal.plugins.CustomPlugin4;
 import com.wojiushiwo.dal.plugins.CustomPlugins;
 import com.wojiushiwo.dal.typeHandler.CustomTypeHandler;
-import org.apache.ibatis.cache.Cache;
 import org.apache.ibatis.executor.loader.cglib.CglibProxyFactory;
 import org.apache.ibatis.plugin.Interceptor;
 import org.apache.ibatis.session.ExecutorType;
-import org.apache.ibatis.session.LocalCacheScope;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.type.TypeHandler;
 import org.mybatis.spring.SqlSessionFactoryBean;
@@ -38,7 +39,7 @@ public class MyBatisConfig {
         //将自定义的typeHandler设置到mybatis配置文件中
         sqlSessionFactoryBean.setTypeHandlers(new TypeHandler[]{new CustomTypeHandler()});
         //将自定义的插件设置到mybatis配置中
-        sqlSessionFactoryBean.setPlugins(new Interceptor[]{plugin()});
+        sqlSessionFactoryBean.setPlugins(new Interceptor[]{new CustomPlugin4(),new CustomPlugin3(),new CustomPlugin2(), plugin()});
         SqlSessionFactory factory = sqlSessionFactoryBean.getObject();
         factory.getConfiguration().setLazyLoadingEnabled(true);
         factory.getConfiguration().setAggressiveLazyLoading(false);
@@ -46,10 +47,10 @@ public class MyBatisConfig {
         return factory;
     }
 
-    private Interceptor plugin(){
-        CustomPlugins customPlugins=new CustomPlugins();
-        Properties properties=new Properties();
-        properties.setProperty("name","wojiushiwo");
+    private Interceptor plugin() {
+        CustomPlugins customPlugins = new CustomPlugins();
+        Properties properties = new Properties();
+        properties.setProperty("name", "wojiushiwo");
         customPlugins.setProperties(properties);
         return customPlugins;
     }
